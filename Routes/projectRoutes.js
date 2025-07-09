@@ -268,9 +268,15 @@ router.post(
     { name: 'resumePdf', maxCount: 1 }
   ]),
   async (req, res) => {
+    const baseUrl = 'http://localhost:5000'
+
     try {
-      const profileImagePath = req.files['profileImage']?.[0]?.path || '';
-      const resumePdfPath = req.files['resumePdf']?.[0]?.path || '';
+     // const profileImagePath = req.files['profileImage']?.[0]?.path || '';
+     const profileImagePath = req.files['profileImage']?.[0]?.filename? `${baseUrl}/uploads/${req.files['profileImage'][0].filename}` : '';
+
+      //const resumePdfPath = req.files['resumePdf']?.[0]?.path || '';
+      const resumePdfPath = req.files['resumePdf']?.[0]?.filename? `${baseUrl}/uploads/${req.files['resumePdf'][0].filename}`: '';
+
       const data = JSON.parse(req.body.data);
 
       const project = new Project({
@@ -309,6 +315,7 @@ router.put(
     { name: 'aboutUserImage', maxCount: 1 }
   ]),
   async (req, res) => {
+    const baseUrl = 'http://localhost:5000'
     try {
       const data = JSON.parse(req.body.data);
       const updateFields = {};
@@ -318,10 +325,14 @@ router.put(
         updateFields.heroSection = {
           ...data.heroSection,
           ...(req.files['profileImage']?.[0]?.path && {
-            profileImage: req.files['profileImage'][0].path.replace(/\\/g, '/')
+           // profileImage: req.files['profileImage'][0].path.replace(/\\/g, '/')
+           profileImage: `${baseUrl}/uploads/${req.files['profileImage'][0].filename}`
+
           }),
           ...(req.files['resumePdf']?.[0]?.path && {
-            resumePdf: req.files['resumePdf'][0].path.replace(/\\/g, '/')
+           // resumePdf: req.files['resumePdf'][0].path.replace(/\\/g, '/')
+
+           resumePdf: `${baseUrl}/uploads/${req.files['resumePdf'][0].filename}`
           })
         };
       }
@@ -331,7 +342,10 @@ router.put(
         updateFields.aboutSection = {
           ...data.aboutSection,
           ...(req.files['aboutUserImage']?.[0]?.path && {
-            aboutUserImage: req.files['aboutUserImage'][0].path.replace(/\\/g, '/')
+          //  aboutUserImage: req.files['aboutUserImage'][0].path.replace(/\\/g, '/')
+          aboutUserImage:   `${baseUrl}/uploads/${req.files['aboutUserImage'][0].filename}`
+ 
+
           })
         };
       }
@@ -355,53 +369,116 @@ router.put(
 );   
 
 
-// ✅ PUT add a new project to the projects array
-router.put(
-  '/:id/add-project',
-  upload.single('projectImage'),
-  async (req, res) => {
-    try {
-      const data = JSON.parse(req.body.data);
+// ✅ PUT add a new project to the projects array// ✅ PUT /api/projects/:id/add-projects
+router.put('/:id/add-project', upload.single('projectImage'), async (req, res) => {
+  try { 
 
-      const newProject = {
-        ...data.newProject,
-        projectImage: req.file ? req.file.path.replace(/\\/g, '/') : ''
-      };
 
-      const updated = await Project.findByIdAndUpdate(
-        req.params.id,
-        { $push: { projects: newProject } },
-        { new: true }
-      );
+    const data = JSON.parse(req.body.data);
+   const baseUrl = 'http://localhost:5000'
+    //const imagePath = req.file?.path?.replace(/\\/g, '/'); 
+     const imagePath = req.file ? `${baseUrl}/uploads/${req.file.filename}` : null
 
-      res.json(updated);
-    } catch (err) {
-      console.error('❌ Add project error:', err.message);
-      res.status(500).json({ message: err.message });
-    }
-  }
-);
 
-router.put('/:id/add-skills', async (req, res) => {
-  try {
-    const { Skills } = req.body; // ✅ Read directly from body
-
-    if (!Skills) {
-      return res.status(400).json({ message: 'Missing Skills in request body' });
-    }
+    const newProject = {
+      ...data.newProject,
+      ...(imagePath && { projectImage: imagePath })
+    };
 
     const updated = await Project.findByIdAndUpdate(
       req.params.id,
-      { skills: Skills },
+      { $push: { projects: newProject } },
       { new: true }
     );
 
-    res.json(updated);
+    if (!updated) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    res.status(200).json({ message: 'Project added successfully', project: updated });
+  } catch (err) {
+    console.error('❌ Error adding project:', err.message);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+
+
+// In projectRoutes.js
+router.put('/:id/add-skills', async (req, res) => {
+  try {
+    const { FrontEnd, BackEnd, Tools } = req.body.skills;
+
+    const updated = await Project.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set: {
+          skills: { FrontEnd, BackEnd, Tools }
+        }
+      },
+      { new: true }
+    );
+
+    res.status(200).json(updated);
   } catch (err) {
     console.error('❌ Add skills error:', err.message);
     res.status(500).json({ message: err.message });
   }
 });
+
+router.put('/:id/add-experience', async (req, res) => {
+  try {
+    const updated = await Project.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set: {
+          experience: req.body.experience,
+        }
+      },
+      { new: true }
+    );
+    res.status(200).json(updated);
+  } catch (err) {
+    console.error('❌ Add experience error:', err.message);
+    res.status(500).json({ message: err.message });
+  }
+});// PUT /api/projects/:id/contact
+router.put('/:id/contact', async (req, res) => {
+  try {
+    const { name, email, message } = req.body;
+
+    if (!name || !email || !message) {
+      return res.status(400).json({ message: 'All fields are required.' });
+    }
+
+    const contactEntry = { name, email, message };
+
+    const updatedProject = await Project.findByIdAndUpdate(
+      req.params.id,
+      {
+        $push: { contactMe: contactEntry }
+      },
+      { new: true }
+    );
+
+    if (!updatedProject) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    res.status(200).json({ message: 'Contact saved successfully', project: updatedProject });
+  } catch (err) {
+    console.error('❌ Error saving contact:', err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
+
+
+
+
+ 
+
 
 module.exports = router;
 
