@@ -268,7 +268,7 @@ router.post(
     { name: 'resumePdf', maxCount: 1 }
   ]),
   async (req, res) => {
-    const baseUrl = 'http://localhost:5000'
+    const baseUrl = `${req.protocol}://${req.get('host')}`
 
     try {
      // const profileImagePath = req.files['profileImage']?.[0]?.path || '';
@@ -315,7 +315,7 @@ router.put(
     { name: 'aboutUserImage', maxCount: 1 }
   ]),
   async (req, res) => {
-    const baseUrl = 'http://localhost:5000'
+    const baseUrl = `${req.protocol}://${req.get('host')}`
     try {
       const data = JSON.parse(req.body.data);
       const updateFields = {};
@@ -375,7 +375,7 @@ router.put('/:id/add-project', upload.single('projectImage'), async (req, res) =
 
 
     const data = JSON.parse(req.body.data);
-   const baseUrl = 'http://localhost:5000'
+   const baseUrl = `${req.protocol}://${req.get('host')}`
     //const imagePath = req.file?.path?.replace(/\\/g, '/'); 
      const imagePath = req.file ? `${baseUrl}/uploads/${req.file.filename}` : null
 
